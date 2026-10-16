@@ -1,0 +1,26 @@
+{
+  "name": "pp-qa",
+  "version": "1.0.0",
+  "description": "Power Platform & Copilot QA Platform",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "setup:env": "./scripts/setup-env.sh",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install && npm --prefix server run playwright:install",
+    "playwright:install": "npm --prefix server run playwright:install",
+    "auth:capture": "npm --prefix server run auth:capture",
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "build": "npm --prefix server run build && npm --prefix client run build",
+    "test": "npm --prefix server run test",
+    "test:parser": "npm --prefix server run test:parser",
+    "test:byok": "npm --prefix server run test:byok",
+    "db:migrate": "npm --prefix server run db:migrate"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
+

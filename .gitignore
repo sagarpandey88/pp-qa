@@ -147,3 +147,17 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Playwright generated test suites, artifacts, execution reports, and auth sessions
+*.spec.ts
+**/generated-tests/
+**/generated-tests/**
+**/playwright/report/
+**/playwright/report/**
+**/playwright/artifacts/
+**/playwright/artifacts/**
+**/playwright/.playwright-ms-auth/
+**/.playwright-ms-auth/
+**/test-results/
+**/test-results/**
+playwright/
