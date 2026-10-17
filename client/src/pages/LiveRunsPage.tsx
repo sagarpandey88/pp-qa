@@ -28,7 +28,10 @@ import { MfaSessionDialog } from '../components/runner/MfaSessionDialog';
 const useStyles = makeStyles({
   page: {
     padding: '24px 32px',
-    maxWidth: '1400px',
+    maxWidth: '1440px',
+    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',

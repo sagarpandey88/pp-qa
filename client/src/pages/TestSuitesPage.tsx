@@ -44,7 +44,10 @@ import { PlaywrightSynthesisModifier } from '../components/tests/PlaywrightSynth
 const useStyles = makeStyles({
   page: {
     padding: '24px 32px',
-    maxWidth: '1350px',
+    maxWidth: '1440px',
+    margin: '0 auto',
+    width: '100%',
+    boxSizing: 'border-box',
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',

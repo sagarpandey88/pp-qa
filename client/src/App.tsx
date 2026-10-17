@@ -26,6 +26,8 @@ const useStyles = makeStyles({
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
+    width: '100%',
+    boxSizing: 'border-box',
   },
 });
 

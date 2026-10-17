@@ -42,6 +42,8 @@ const useStyles = makeStyles({
     borderRadius: '10px',
     border: `1px solid ${tokens.colorNeutralStroke2}`,
     padding: '18px 22px',
+    width: '100%',
+    boxSizing: 'border-box',
   },
   headerBar: {
     display: 'flex',
