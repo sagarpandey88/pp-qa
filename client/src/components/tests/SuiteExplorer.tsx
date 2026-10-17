@@ -91,6 +91,7 @@ interface SuiteExplorerProps {
   onOpenSuite: (suite: any) => void;
   onNewSuite: () => void;
   onViewCode: (suite: any) => void;
+  onModifyCode?: (suite: any) => void;
   onRunSuite: (suiteId: string) => void;
   onDeleteSuite: (suiteId: string) => void;
 }
@@ -103,6 +104,7 @@ export const SuiteExplorer: React.FC<SuiteExplorerProps> = ({
   onOpenSuite,
   onNewSuite,
   onViewCode,
+  onModifyCode,
   onRunSuite,
   onDeleteSuite,
 }) => {
@@ -358,6 +360,19 @@ export const SuiteExplorer: React.FC<SuiteExplorerProps> = ({
                             Studio
                           </Button>
                         </Tooltip>
+
+                        {hasCode && (
+                          <Tooltip content="Modify Playwright Script with AI Assistant" relationship="label">
+                            <Button
+                              size="small"
+                              appearance="subtle"
+                              icon={<SparkleRegular style={{ color: '#0078d4' }} />}
+                              onClick={() => (onModifyCode ? onModifyCode(s) : onOpenSuite(s))}
+                            >
+                              AI Modify
+                            </Button>
+                          </Tooltip>
+                        )}
 
                         {hasCode && (
                           <Tooltip content="View Playwright TypeScript Code" relationship="label">

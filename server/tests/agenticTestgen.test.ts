@@ -1,6 +1,7 @@
 import { initDb, closeDb } from '../src/db/pool';
 import { AgenticScenarioGenerator } from '../src/services/testgen/agenticScenarioGenerator';
 import { AgenticSynthesizer } from '../src/services/testgen/agenticSynthesizer';
+import { AgenticCodeModifier } from '../src/services/testgen/agenticCodeModifier';
 import { TestSuiteService } from '../src/services/testSuite.service';
 import { findOrCreateUser } from '../src/services/auth.service';
 import { SolutionService } from '../src/services/solution.service';
@@ -142,5 +143,72 @@ describe('Phase 7: Agentic AI Test Generation & Metadata Synthesis', () => {
     // Clean up
     await TestSuiteService.deleteSuite(suite.id);
   });
+
+  it('should modify Playwright test script to remove waitForNetworkIdle anti-pattern', async () => {
+    const rawFlakyCode = `import { test, expect } from '@playwright/test';
+import { AppProvider, LoginPage, ModelDrivenAppPage, FormComponent } from '../templates/pom';
+
+test.describe('Flaky Account Test', () => {
+  let appProvider: AppProvider;
+  let modelApp: ModelDrivenAppPage;
+  let form: FormComponent;
+
+  test.beforeEach(async ({ page }) => {
+    appProvider = new AppProvider(page);
+    modelApp = new ModelDrivenAppPage(page);
+    form = new FormComponent(page);
+    await appProvider.navigateToApp('https://org.crm.dynamics.com');
+    await appProvider.waitForAppReady();
+  });
+
+  test('Save Account', async ({ page }) => {
+    await test.step('Save and wait for network', async () => {
+      await form.setTextInput('name', 'Contoso');
+      await appProvider.waitForNetworkIdle();
+      await modelApp.save();
+    });
+  });
+});`;
+
+    const result = await AgenticCodeModifier.modifyCode({
+      code: rawFlakyCode,
+      instruction: 'Fix flakiness: remove waitForNetworkIdle and rely on POM auto-waiting',
+      userId,
+    });
+
+    expect(result.modifiedCode).not.toContain('waitForNetworkIdle');
+    expect(result.modifiedCode).toContain("await form.setTextInput('name', 'Contoso');");
+    expect(result.modifiedCode).toContain('await modelApp.save();');
+    expect(result.changes.some((c) => c.includes('waitForNetworkIdle'))).toBe(true);
+  });
+
+  it('should modify Playwright test script to add dialog confirmation for deactivation', async () => {
+    const code = `import { test, expect } from '@playwright/test';
+import { AppProvider, ModelDrivenAppPage, GridComponent } from '../templates/pom';
+
+test.describe('Deactivation Test', () => {
+  let modelApp: ModelDrivenAppPage;
+  test.beforeEach(async ({ page }) => {
+    modelApp = new ModelDrivenAppPage(page);
+  });
+
+  test('Deactivate Account', async ({ page }) => {
+    await test.step('Deactivate', async () => {
+      await modelApp.clickCommandButton('Deactivate');
+    });
+  });
+});`;
+
+    const result = await AgenticCodeModifier.modifyCode({
+      code,
+      instruction: 'Deactivating fails because confirmation modal pops up. Add dialog confirm.',
+      errorLog: 'TimeoutError: element modal dialog not dismissed',
+      userId,
+    });
+
+    expect(result.modifiedCode).toContain("await modelApp.confirmDialog('Deactivate');");
+    expect(result.changes.some((c) => c.includes('confirmDialog'))).toBe(true);
+  });
 });
+
 

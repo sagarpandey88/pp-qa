@@ -39,6 +39,7 @@ import { CodePreviewDrawer } from '../components/tests/CodePreviewDrawer';
 import { SuiteSolutionSelector } from '../components/tests/SuiteSolutionSelector';
 import { SuiteExplorer } from '../components/tests/SuiteExplorer';
 import { AiScenarioGeneratorDialog } from '../components/tests/AiScenarioGeneratorDialog';
+import { PlaywrightSynthesisModifier } from '../components/tests/PlaywrightSynthesisModifier';
 
 const useStyles = makeStyles({
   page: {
@@ -181,6 +182,7 @@ export const TestSuitesPage: React.FC = () => {
       // Handle query params
       const qSolutionId = searchParams.get('solutionId');
       const qSuiteId = searchParams.get('suiteId');
+      const qTab = searchParams.get('tab');
 
       let currentSolId = '';
       if (qSolutionId && loadedSolutions.some((s: any) => s.id === qSolutionId)) {
@@ -196,6 +198,9 @@ export const TestSuitesPage: React.FC = () => {
         if (found) {
           loadSuite(found);
           setActiveView('studio');
+          if (qTab === 'code') {
+            setStudioTab('code');
+          }
           return;
         }
       }
@@ -218,9 +223,17 @@ export const TestSuitesPage: React.FC = () => {
         // Load the first suite matching the solution if available
         const matched = loadedSuites.find((s: any) => (s.solution_id || s.solutionId) === currentSolId) || loadedSuites[0];
         loadSuite(matched);
+        if (qTab === 'code') {
+          setActiveView('studio');
+          setStudioTab('code');
+        }
       } else {
         // Prepare empty new suite
         resetNewSuite(currentSolId, loadedSolutions);
+        if (qTab === 'code') {
+          setActiveView('studio');
+          setStudioTab('code');
+        }
       }
     } catch (err) {
       console.error('Failed to load test suite data', err);
@@ -542,6 +555,11 @@ export const TestSuitesPage: React.FC = () => {
             loadSuite(s);
             setIsCodeDrawerOpen(true);
           }}
+          onModifyCode={(s) => {
+            loadSuite(s);
+            setActiveView('studio');
+            setStudioTab('code');
+          }}
           onRunSuite={handleRunSuite}
           onDeleteSuite={handleDeleteSuite}
         />
@@ -660,7 +678,7 @@ export const TestSuitesPage: React.FC = () => {
               Interactive Scenario Cards ({scenarios.length})
             </Tab>
             <Tab value="code" icon={<CodeRegular />}>
-              Synthesized Playwright Code (.spec.ts)
+              Playwright Synthesis &amp; AI Modifier (.spec.ts)
               {generatedCode && (
                 <Badge size="small" appearance="filled" color="success" style={{ marginLeft: '6px' }}>
                   Ready
@@ -708,69 +726,55 @@ export const TestSuitesPage: React.FC = () => {
             </>
           )}
 
-          {/* TAB 2: Inline Synthesized Playwright Code View */}
+          {/* TAB 2: Playwright Synthesis & AI Modification Studio */}
           {studioTab === 'code' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Badge appearance="filled" color="brand">TypeScript</Badge>
-                  <Badge appearance="outline">@playwright/test</Badge>
-                  <Badge appearance="tint" color="informative">POM Patterns (ModelDrivenAppPage, GridComponent, FormComponent)</Badge>
-                </div>
-
-                <div className={styles.actionGroup}>
+            generatedCode ? (
+              <PlaywrightSynthesisModifier
+                suiteId={selectedSuiteId}
+                suiteTitle={title}
+                solutionId={solutionId}
+                targetAppType={targetAppType}
+                targetAppName={targetAppName}
+                scenarios={scenarios}
+                code={generatedCode}
+                onSaveCode={async (newCode) => {
+                  setGeneratedCode(newCode);
+                  const refetched = await apiClient.get('/test-suites');
+                  setSuites(refetched.data || []);
+                }}
+                onRunSuite={() => handleRunSuite()}
+                onResynthesize={() => handleSynthesize({ useAi: true })}
+                isSynthesizing={synthesizing}
+                initialErrorLog={searchParams.get('errorLog') || ''}
+              />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '48px 24px', backgroundColor: tokens.colorNeutralBackground1, borderRadius: '8px', border: `1px solid ${tokens.colorNeutralStroke2}` }}>
+                <CodeRegular style={{ fontSize: '48px', color: '#0078d4', marginBottom: '8px' }} />
+                <Title3 style={{ fontSize: '18px', display: 'block' }}>Playwright Code Not Synthesized Yet</Title3>
+                <Text style={{ color: tokens.colorNeutralForeground3, display: 'block', margin: '8px 0 16px' }}>
+                  Click <strong>Generate Playwright Code</strong> to compile your {scenarios.length} interactive scenario cards into strongly-typed Microsoft Page Object Model tests, or initialize an editable template to customize with the AI Assistant.
+                </Text>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
                   <Button
-                    size="small"
-                    appearance="secondary"
-                    icon={copiedCode ? <CheckmarkRegular /> : <CopyRegular />}
-                    onClick={handleCopyCode}
-                    disabled={!generatedCode}
-                  >
-                    {copiedCode ? 'Copied' : 'Copy Spec'}
-                  </Button>
-
-                  <Button
-                    size="small"
-                    appearance="secondary"
-                    icon={<ArrowDownloadRegular />}
-                    onClick={handleDownloadCode}
-                    disabled={!generatedCode}
-                  >
-                    Download .spec.ts
-                  </Button>
-
-                  <Button
-                    size="small"
                     appearance="primary"
-                    icon={<CodeRegular />}
+                    icon={<SparkleRegular />}
                     onClick={() => handleSynthesize({ useAi: true })}
                     disabled={synthesizing || scenarios.length === 0}
                   >
-                    {synthesizing ? 'Re-Synthesizing...' : 'Re-Synthesize Code'}
+                    {synthesizing ? 'Synthesizing...' : '✨ Generate Playwright Code Now'}
+                  </Button>
+                  <Button
+                    appearance="secondary"
+                    icon={<CodeRegular />}
+                    onClick={() => {
+                      setGeneratedCode(`import { test, expect } from '@playwright/test';\nimport { AppProvider, LoginPage, ModelDrivenAppPage, GridComponent, FormComponent, CopilotChatComponent } from '../templates/pom';\n\ntest.describe('${title}', () => {\n  let appProvider: AppProvider;\n  let loginPage: LoginPage;\n  let modelApp: ModelDrivenAppPage;\n  let grid: GridComponent;\n  let form: FormComponent;\n  let copilot: CopilotChatComponent;\n\n  test.beforeEach(async ({ page }) => {\n    appProvider = new AppProvider(page);\n    loginPage = new LoginPage(page);\n    modelApp = new ModelDrivenAppPage(page);\n    grid = new GridComponent(page);\n    form = new FormComponent(page);\n    copilot = new CopilotChatComponent(page);\n    await appProvider.navigateToApp(process.env.PP_APP_URL || 'https://org.crm.dynamics.com');\n    if (await loginPage.isLoginPage()) { await loginPage.login(); }\n    await appProvider.waitForAppReady();\n  });\n\n  test('Sample Scenario', async ({ page }) => {\n    await test.step('Navigate and perform actions', async () => {\n      // Use the AI Assistant on the right to author steps or fix issues\n    });\n  });\n});\n`);
+                    }}
+                  >
+                    Open Blank Studio Template
                   </Button>
                 </div>
               </div>
-
-              {generatedCode ? (
-                <pre className={styles.codePreviewBox}>{generatedCode}</pre>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '48px 24px', backgroundColor: tokens.colorNeutralBackground1, borderRadius: '8px', border: `1px solid ${tokens.colorNeutralStroke2}` }}>
-                  <CodeRegular style={{ fontSize: '48px', color: '#0078d4', marginBottom: '8px' }} />
-                  <Title3 style={{ fontSize: '18px', display: 'block' }}>Playwright Code Not Synthesized Yet</Title3>
-                  <Text style={{ color: tokens.colorNeutralForeground3, display: 'block', margin: '8px 0 16px' }}>
-                    Click <strong>Generate Playwright Code</strong> to compile your {scenarios.length} interactive scenario cards into strongly-typed Microsoft Page Object Model tests.
-                  </Text>
-                  <Button
-                    appearance="primary"
-                    icon={<CodeRegular />}
-                    onClick={() => handleSynthesize({ useAi: true })}
-                    disabled={synthesizing || scenarios.length === 0}
-                  >
-                    {synthesizing ? 'Synthesizing...' : 'Generate Playwright Code Now'}
-                  </Button>
-                </div>
-              )}
-            </div>
+            )
           )}
         </>
       )}
@@ -784,6 +788,11 @@ export const TestSuitesPage: React.FC = () => {
         onRunSuite={() => handleRunSuite()}
         onResynthesizeAi={() => handleSynthesize({ useAi: true })}
         isSynthesizing={synthesizing}
+        onOpenStudio={() => {
+          setIsCodeDrawerOpen(false);
+          setActiveView('studio');
+          setStudioTab('code');
+        }}
       />
     </div>
   );

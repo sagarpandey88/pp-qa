@@ -67,6 +67,7 @@ interface CodePreviewDrawerProps {
   isRunning?: boolean;
   onResynthesizeAi?: () => void;
   isSynthesizing?: boolean;
+  onOpenStudio?: () => void;
 }
 
 export const CodePreviewDrawer: React.FC<CodePreviewDrawerProps> = ({
@@ -78,6 +79,7 @@ export const CodePreviewDrawer: React.FC<CodePreviewDrawerProps> = ({
   isRunning,
   onResynthesizeAi,
   isSynthesizing,
+  onOpenStudio,
 }) => {
   const styles = useStyles();
   const [copied, setCopied] = useState(false);
@@ -134,6 +136,19 @@ export const CodePreviewDrawer: React.FC<CodePreviewDrawerProps> = ({
           </div>
 
           <div className={styles.actions}>
+            {onOpenStudio && (
+              <Button
+                size="small"
+                appearance="primary"
+                icon={<SparkleRegular />}
+                onClick={() => {
+                  onClose();
+                  onOpenStudio();
+                }}
+              >
+                Modify with AI Studio
+              </Button>
+            )}
             {onResynthesizeAi && (
               <Button
                 size="small"

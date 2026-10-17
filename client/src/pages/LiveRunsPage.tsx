@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Title3,
   Text,
@@ -15,6 +16,7 @@ import {
   CameraRegular,
   DocumentTableRegular,
   ArrowClockwiseRegular,
+  SparkleRegular,
 } from '@fluentui/react-icons';
 import { apiClient } from '../api/client';
 import { TestRunDashboard } from '../components/runner/TestRunDashboard';
@@ -49,6 +51,7 @@ const useStyles = makeStyles({
 
 export const LiveRunsPage: React.FC = () => {
   const styles = useStyles();
+  const navigate = useNavigate();
   const [runs, setRuns] = useState<any[]>([]);
   const [selectedRun, setSelectedRun] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -155,6 +158,27 @@ export const LiveRunsPage: React.FC = () => {
               </Badge>
               {selectedRun.duration_ms > 0 && (
                 <Badge appearance="outline">{selectedRun.duration_ms}ms</Badge>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              {(selectedRun.test_suite_id || selectedRun.testSuiteId) && (
+                <Button
+                  appearance={selectedRun.status === 'failed' ? 'primary' : 'secondary'}
+                  icon={<SparkleRegular style={{ color: selectedRun.status === 'failed' ? '#ffffff' : '#0078d4' }} />}
+                  onClick={() => {
+                    const suiteId = selectedRun.test_suite_id || selectedRun.testSuiteId;
+                    const errorSnippet = (selectedRun.logs || '')
+                      .split('\n')
+                      .filter((l: string) => l.toLowerCase().includes('error') || l.toLowerCase().includes('timeout') || l.toLowerCase().includes('failed') || l.toLowerCase().includes('waiting for'))
+                      .slice(0, 15)
+                      .join('\n');
+                    const encodedErr = errorSnippet ? `&errorLog=${encodeURIComponent(errorSnippet)}` : '';
+                    navigate(`/test-suites?suiteId=${suiteId}&tab=code${encodedErr}`);
+                  }}
+                >
+                  {selectedRun.status === 'failed' ? '🛠️ Fix Script with AI Assistant' : '✏️ Modify Playwright Script'}
+                </Button>
               )}
             </div>
           </div>

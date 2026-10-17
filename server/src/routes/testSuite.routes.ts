@@ -3,6 +3,7 @@ import { authenticateToken, AuthenticatedRequest } from '../services/auth.servic
 import { TestSuiteService } from '../services/testSuite.service';
 import { synthesizePlaywrightTestSuite } from '../services/testgen/testSynthesizer';
 import { AgenticSynthesizer } from '../services/testgen/agenticSynthesizer';
+import { AgenticCodeModifier } from '../services/testgen/agenticCodeModifier';
 
 const router = Router();
 
@@ -71,6 +72,45 @@ router.post('/synthesize-preview', authenticateToken, async (req: AuthenticatedR
     res.status(500).json({ error: err.message || 'Failed to preview test code synthesis' });
   }
 });
+
+/**
+ * POST /api/test-suites/modify-code
+ * AI-powered modification and issue fixing for Playwright test scripts (in-memory preview)
+ */
+router.post('/modify-code', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { code, instruction, errorLog, suiteTitle, targetAppType, targetAppName, solutionId, provider, model } = req.body;
+
+    if (!code) {
+      res.status(400).json({ error: 'Playwright test code is required' });
+      return;
+    }
+
+    if (!instruction) {
+      res.status(400).json({ error: 'Modification instruction or issue description is required' });
+      return;
+    }
+
+    const result = await AgenticCodeModifier.modifyCode({
+      code,
+      instruction,
+      errorLog,
+      suiteTitle,
+      targetAppType,
+      targetAppName,
+      solutionId,
+      userId,
+      provider,
+      model,
+    });
+
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to modify test script' });
+  }
+});
+
 
 /**
  * POST /api/test-suites
@@ -172,6 +212,70 @@ router.post('/:id/synthesize', authenticateToken, async (req: AuthenticatedReque
     res.status(500).json({ error: err.message || 'Failed to synthesize test suite code' });
   }
 });
+
+/**
+ * POST /api/test-suites/:id/modify-code
+ * Modifies synthesized Playwright test script for an existing suite with AI assistant
+ */
+router.post('/:id/modify-code', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { id } = req.params;
+    const { code, instruction, errorLog, provider, model, autoSave } = req.body;
+
+    const suite = await TestSuiteService.getSuite(id);
+    if (!suite) {
+      res.status(404).json({ error: 'Test suite not found' });
+      return;
+    }
+
+    const scriptCode = code || suite.generatedCode;
+    if (!scriptCode) {
+      res.status(400).json({ error: 'No test code available to modify. Please synthesize code first.' });
+      return;
+    }
+
+    if (!instruction) {
+      res.status(400).json({ error: 'Modification instruction or issue description is required.' });
+      return;
+    }
+
+    const result = await AgenticCodeModifier.modifyCode({
+      code: scriptCode,
+      instruction,
+      errorLog,
+      suiteTitle: suite.title,
+      targetAppType: suite.targetAppType,
+      targetAppName: suite.targetAppName,
+      solutionId: suite.solutionId,
+      userId,
+      provider,
+      model,
+    });
+
+    let updatedSuite = suite;
+    if (autoSave !== false) {
+      const updated = await TestSuiteService.updateSuite(id, {
+        generatedCode: result.modifiedCode,
+        preserveCode: true,
+      });
+      if (updated) {
+        updatedSuite = updated;
+      }
+    }
+
+    res.json({
+      success: true,
+      modifiedCode: result.modifiedCode,
+      explanation: result.explanation,
+      changes: result.changes,
+      suite: updatedSuite,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to modify test suite code' });
+  }
+});
+
 
 /**
  * DELETE /api/test-suites/:id
