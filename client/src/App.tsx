@@ -3,12 +3,14 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { makeStyles, tokens } from '@fluentui/react-components';
 import { useAuth } from './context/AuthContext';
 import { Header } from './components/common/Header';
-import { Navigation } from './components/common/Navigation';
+import { LeftNav } from './components/common/LeftNav';
 import { DemoBanner } from './components/common/DemoBanner';
 import { LandingPage } from './pages/LandingPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { OnboardingPage } from './pages/OnboardingPage';
 import { SolutionsPage } from './pages/SolutionsPage';
+import { ComponentsPage } from './pages/ComponentsPage';
+import { MarkdownPage } from './pages/MarkdownPage';
 import { TestSuitesPage } from './pages/TestSuitesPage';
 import { LiveRunsPage } from './pages/LiveRunsPage';
 import { SettingsPage } from './pages/SettingsPage';
@@ -22,12 +24,21 @@ const useStyles = makeStyles({
     backgroundColor: tokens.colorNeutralBackground3,
     color: tokens.colorNeutralForeground1,
   },
+  bodyLayout: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'row',
+    minHeight: 'calc(100vh - 56px)',
+    width: '100%',
+    overflow: 'hidden',
+  },
   content: {
     flex: 1,
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
     boxSizing: 'border-box',
+    overflowY: 'auto',
   },
 });
 
@@ -36,7 +47,18 @@ export const App: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [isNavExpanded, setIsNavExpanded] = useState<boolean>(() => {
+    return localStorage.getItem('ppqa_nav_expanded') !== 'false';
+  });
   const [importedScenario, setImportedScenario] = useState<any | null>(null);
+
+  const handleToggleNav = () => {
+    setIsNavExpanded((prev) => {
+      const next = !prev;
+      localStorage.setItem('ppqa_nav_expanded', String(next));
+      return next;
+    });
+  };
 
   const handleScenarioImported = (sc: any) => {
     try {
@@ -67,20 +89,26 @@ export const App: React.FC = () => {
       <Header
         onToggleChat={() => setIsChatOpen(!isChatOpen)}
         isChatOpen={isChatOpen}
+        onToggleNav={handleToggleNav}
+        isNavExpanded={isNavExpanded}
       />
-      <Navigation />
-      <main className={styles.content}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/solutions" replace />} />
-          <Route path="/auth/callback" element={<AuthCallbackPage />} />
-          <Route path="/onboarding" element={<OnboardingPage />} />
-          <Route path="/solutions" element={<SolutionsPage />} />
-          <Route path="/test-suites" element={<TestSuitesPage />} />
-          <Route path="/runs" element={<LiveRunsPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/solutions" replace />} />
-        </Routes>
-      </main>
+      <div className={styles.bodyLayout}>
+        <LeftNav expanded={isNavExpanded} onToggle={handleToggleNav} />
+        <main className={styles.content}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/solutions" replace />} />
+            <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/solutions" element={<SolutionsPage />} />
+            <Route path="/components" element={<ComponentsPage />} />
+            <Route path="/markdown" element={<MarkdownPage />} />
+            <Route path="/test-suites" element={<TestSuitesPage />} />
+            <Route path="/runs" element={<LiveRunsPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<Navigate to="/solutions" replace />} />
+          </Routes>
+        </main>
+      </div>
 
       <ChatAssistantDrawer
         open={isChatOpen}
@@ -92,4 +120,3 @@ export const App: React.FC = () => {
 };
 
 export default App;
-

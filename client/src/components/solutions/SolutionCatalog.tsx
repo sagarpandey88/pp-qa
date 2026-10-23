@@ -24,6 +24,8 @@ import {
   DeleteRegular,
   CheckmarkCircleRegular,
   DocumentBulletListRegular,
+  TableRegular,
+  DocumentTextRegular,
 } from '@fluentui/react-icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
@@ -313,6 +315,28 @@ export const SolutionCatalog: React.FC<SolutionCatalogProps> = ({
                         </Button>
                         {isExtracted && matchedImport && (
                           <>
+                            <Button
+                              size="small"
+                              appearance="subtle"
+                              icon={<TableRegular />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/components?solutionId=${matchedImport.id}`);
+                              }}
+                            >
+                              Components
+                            </Button>
+                            <Button
+                              size="small"
+                              appearance="subtle"
+                              icon={<DocumentTextRegular />}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/markdown?solutionId=${matchedImport.id}`);
+                              }}
+                            >
+                              Markdown
+                            </Button>
                             <Button
                               size="small"
                               appearance="secondary"

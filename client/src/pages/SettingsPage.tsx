@@ -46,6 +46,8 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { LoginButton } from '../components/auth/LoginButton';
 import { MfaSessionDialog } from '../components/runner/MfaSessionDialog';
+import { useAiModel } from '../context/AiModelContext';
+import { UnifiedModelSelector } from '../components/ai/UnifiedModelSelector';
 
 const useStyles = makeStyles({
   container: {
@@ -155,6 +157,7 @@ export const SettingsPage: React.FC = () => {
   const styles = useStyles();
   const { themeMode, effectiveTheme, setThemeMode } = useTheme();
   const { user, logout } = useAuth();
+  const globalAi = useAiModel();
 
   // Active filter tab
   const [activeSection, setActiveSection] = useState<'all' | 'azure' | 'ai' | 'theme' | 'account'>('all');
@@ -192,26 +195,18 @@ export const SettingsPage: React.FC = () => {
     const trimmed = val.trim();
     setDefaultOpenAiModel(val);
     localStorage.setItem('ppqa_default_model_openai', trimmed);
-    try {
-      const activeRaw = localStorage.getItem('ppqa_active_model_config');
-      const active = activeRaw ? JSON.parse(activeRaw) : { provider: 'openai' };
-      if (active.provider === 'openai') {
-        localStorage.setItem('ppqa_active_model_config', JSON.stringify({ provider: 'openai', model: trimmed }));
-      }
-    } catch {}
+    if (globalAi.modelConfig.provider === 'openai') {
+      globalAi.setModel(trimmed);
+    }
   };
 
   const handleDefaultGeminiModelChange = (val: string) => {
     const trimmed = val.trim();
     setDefaultGeminiModel(val);
     localStorage.setItem('ppqa_default_model_gemini', trimmed);
-    try {
-      const activeRaw = localStorage.getItem('ppqa_active_model_config');
-      const active = activeRaw ? JSON.parse(activeRaw) : { provider: 'gemini' };
-      if (active.provider === 'gemini') {
-        localStorage.setItem('ppqa_active_model_config', JSON.stringify({ provider: 'gemini', model: trimmed }));
-      }
-    } catch {}
+    if (globalAi.modelConfig.provider === 'gemini') {
+      globalAi.setModel(trimmed);
+    }
   };
 
   const fetchProfiles = async () => {
@@ -322,6 +317,7 @@ export const SettingsPage: React.FC = () => {
       if (provider === 'azure_openai') setAzureKey('');
       if (provider === 'gemini') setGeminiKey('');
       await fetchByokKeys();
+      await globalAi.refreshByokKeys();
     } catch (err: any) {
       alert(`Failed to save ${provider} API key: ${err.response?.data?.error || err.message}`);
     } finally {
@@ -359,6 +355,7 @@ export const SettingsPage: React.FC = () => {
     try {
       await apiClient.delete(`/byok/${provider}`);
       await fetchByokKeys();
+      await globalAi.refreshByokKeys();
     } catch (err) {
       console.error(`Failed to delete ${provider} key`, err);
     }
@@ -563,6 +560,62 @@ export const SettingsPage: React.FC = () => {
             <div className={styles.encryptionCallout}>
               <ShieldCheckmarkRegular style={{ color: '#0078d4', fontSize: '18px' }} />
               <span>AES-256-GCM Encrypted at rest in secure PostgreSQL vault</span>
+            </div>
+          </div>
+
+          {/* Combined AI Model Master Card */}
+          <div
+            style={{
+              padding: '20px 24px',
+              backgroundColor: tokens.colorNeutralBackground2,
+              borderRadius: '8px',
+              border: `1px solid ${tokens.colorCompoundBrandStroke}`,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '14px',
+              marginBottom: '16px',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <SparkleRegular style={{ color: tokens.colorCompoundBrandForeground1, fontSize: '20px' }} />
+                  <Text weight="semibold" size={400}>Global Active AI Model</Text>
+                  <Badge appearance="filled" color="brand">Combined for All Screens</Badge>
+                </div>
+                <Text size={200} style={{ color: tokens.colorNeutralForeground3, display: 'block', marginTop: '4px' }}>
+                  Controls the AI engine uniformly across Playwright Test Studio, Chat Assistant Drawer, AI Scenario Generation, and Code Synthesizer.
+                </Text>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <UnifiedModelSelector variant="pill" theme="panel" size="medium" />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', paddingTop: '10px', borderTop: `1px solid ${tokens.colorNeutralStroke2}` }}>
+              <Text size={200} weight="semibold">Quick Select Active Engine:</Text>
+              <Button
+                size="small"
+                appearance={globalAi.modelConfig.provider === 'azure_openai' ? 'primary' : 'outline'}
+                onClick={() => globalAi.setProvider('azure_openai')}
+              >
+                Azure OpenAI ({azureInfo?.isConfigured ? 'Vault Key' : 'Sandbox Mock'})
+              </Button>
+              <Button
+                size="small"
+                appearance={globalAi.modelConfig.provider === 'openai' ? 'primary' : 'outline'}
+                onClick={() => globalAi.setProvider('openai')}
+              >
+                OpenAI Direct ({openaiInfo?.isConfigured ? 'Vault Key' : 'Sandbox Mock'})
+              </Button>
+              <Button
+                size="small"
+                appearance={globalAi.modelConfig.provider === 'gemini' ? 'primary' : 'outline'}
+                onClick={() => globalAi.setProvider('gemini')}
+              >
+                Google Gemini ({geminiInfo?.isConfigured ? 'Vault Key' : 'Sandbox Mock'})
+              </Button>
             </div>
           </div>
 

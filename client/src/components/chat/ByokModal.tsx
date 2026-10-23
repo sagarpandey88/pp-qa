@@ -23,8 +23,10 @@ import {
   CheckmarkRegular,
   DismissRegular,
   PlugConnectedRegular,
+  BotRegular,
 } from '@fluentui/react-icons';
 import { apiClient } from '../../api/client';
+import { useAiModel } from '../../context/AiModelContext';
 
 const useStyles = makeStyles({
   container: {
@@ -34,6 +36,15 @@ const useStyles = makeStyles({
     marginTop: '12px',
     maxHeight: '70vh',
     overflowY: 'auto',
+  },
+  activeModelBanner: {
+    padding: '10px 14px',
+    backgroundColor: tokens.colorNeutralBackground3,
+    borderRadius: '6px',
+    border: `1px solid ${tokens.colorNeutralStroke2}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   providerRow: {
     padding: '16px',
@@ -63,14 +74,28 @@ const useStyles = makeStyles({
   },
 });
 
-interface ByokModalProps {
+export interface ByokModalProps {
   onKeysUpdated?: () => void;
   triggerButton?: React.ReactElement;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButton }) => {
+export const ByokModal: React.FC<ByokModalProps> = ({
+  onKeysUpdated,
+  triggerButton,
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+}) => {
   const styles = useStyles();
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setIsOpen = (newVal: boolean) => {
+    if (controlledOnOpenChange) controlledOnOpenChange(newVal);
+    setInternalOpen(newVal);
+  };
+
+  const { modelConfig, setProvider, refreshByokKeys: syncGlobalKeys, getShortModelLabel } = useAiModel();
   const [keys, setKeys] = useState<any[]>([]);
 
   // Azure OpenAI state
@@ -103,8 +128,8 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
   };
 
   useEffect(() => {
-    if (open) fetchKeys();
-  }, [open]);
+    if (isOpen) fetchKeys();
+  }, [isOpen]);
 
   const handleSave = async (
     provider: 'openai' | 'azure_openai' | 'gemini',
@@ -119,6 +144,7 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
       if (provider === 'azure_openai') setAzureKey('');
       if (provider === 'gemini') setGeminiKey('');
       await fetchKeys();
+      await syncGlobalKeys();
       if (onKeysUpdated) onKeysUpdated();
     } catch (err: any) {
       alert(`Failed to save key: ${err.response?.data?.error || err.message}`);
@@ -153,6 +179,7 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
     try {
       await apiClient.delete(`/byok/${provider}`);
       await fetchKeys();
+      await syncGlobalKeys();
       if (onKeysUpdated) onKeysUpdated();
     } catch (err) {
       console.error('Failed to delete key', err);
@@ -164,7 +191,7 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
   const geminiInfo = keys.find((k) => k.provider === 'gemini');
 
   return (
-    <Dialog open={open} onOpenChange={(_, data) => setOpen(data.open)}>
+    <Dialog open={isOpen} onOpenChange={(_, data) => setIsOpen(data.open)}>
       <DialogTrigger disableButtonEnhancement>
         {triggerButton || (
           <Button appearance="secondary" icon={<KeyRegular />}>
@@ -172,12 +199,24 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
           </Button>
         )}
       </DialogTrigger>
-      <DialogSurface style={{ maxWidth: '580px', width: '100%' }}>
+      <DialogSurface style={{ maxWidth: '620px', width: '100%' }}>
         <DialogBody>
           <DialogTitle>Bring Your Own Key (BYOK) AI Vault</DialogTitle>
           <Text size={200} style={{ color: tokens.colorNeutralForeground3, marginTop: '4px' }}>
             Enter your personal or enterprise AI keys. All keys are encrypted at rest with AES-256-GCM.
           </Text>
+
+          {/* Unified active model status */}
+          <div className={styles.activeModelBanner} style={{ marginTop: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <BotRegular style={{ color: tokens.colorBrandForeground1 }} />
+              <div>
+                <Text weight="semibold" size={200}>Active AI Model (All Screens):</Text>{' '}
+                <Text size={200}>{getShortModelLabel()}</Text>
+              </div>
+            </div>
+            <Badge appearance="tint" color="brand">Unified Engine</Badge>
+          </div>
 
           <DialogContent className={styles.container}>
             {/* Azure OpenAI Section */}
@@ -187,6 +226,9 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <SparkleRegular style={{ color: '#0078d4' }} />
                     <strong>Azure OpenAI Service</strong>
+                    {modelConfig.provider === 'azure_openai' && (
+                      <Badge size="small" appearance="filled" color="brand">Active Engine</Badge>
+                    )}
                   </div>
                   <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground3 }}>
                     Enterprise dedicated endpoint with private data governance
@@ -218,9 +260,9 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
                     onChange={(e, data) => setAzureEndpoint(data.value)}
                   />
                 </Field>
-                <Field label="Deployment Name">
+                <Field label="Deployment Name" required>
                   <Input
-                    placeholder="gpt-4o"
+                    placeholder="e.g. gpt-4o, gpt-4"
                     value={azureDeployment}
                     onChange={(e, data) => setAzureDeployment(data.value)}
                   />
@@ -228,56 +270,70 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
               </div>
 
               {azureTestMsg && (
-                <div style={{ fontSize: '12px', padding: '6px 10px', borderRadius: '4px', backgroundColor: tokens.colorNeutralBackground3 }}>
+                <div style={{ fontSize: '12px', padding: '6px 10px', borderRadius: '4px', backgroundColor: azureTestMsg.includes('success') ? '#dff6dd' : '#fde7e9', color: azureTestMsg.includes('success') ? '#107c41' : '#a80000' }}>
                   {azureTestMsg}
                 </div>
               )}
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                 <Button
                   size="small"
-                  appearance="secondary"
-                  icon={azureTesting ? <Spinner size="tiny" /> : <PlugConnectedRegular />}
+                  appearance="subtle"
+                  icon={<PlugConnectedRegular />}
                   onClick={handleTestAzure}
                   disabled={azureTesting || !azureKey || !azureEndpoint}
                 >
                   {azureTesting ? 'Testing...' : 'Test Connection'}
                 </Button>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  {azureInfo?.isConfigured && (
-                    <Button
-                      size="small"
-                      appearance="subtle"
-                      icon={<DeleteRegular />}
-                      onClick={() => handleDelete('azure_openai')}
-                    >
-                      Remove
-                    </Button>
-                  )}
+                {azureInfo?.isConfigured && modelConfig.provider !== 'azure_openai' && (
                   <Button
                     size="small"
-                    appearance="primary"
-                    onClick={() =>
-                      handleSave('azure_openai', azureKey, {
-                        endpoint: azureEndpoint,
-                        deployment: azureDeployment,
-                      })
-                    }
-                    disabled={!azureKey || savingProv === 'azure_openai'}
+                    appearance="subtle"
+                    onClick={() => setProvider('azure_openai')}
                   >
-                    {savingProv === 'azure_openai' ? 'Saving...' : 'Save Azure Key'}
+                    Set Active
                   </Button>
-                </div>
+                )}
+                {azureInfo?.isConfigured && (
+                  <Button
+                    size="small"
+                    appearance="subtle"
+                    icon={<DeleteRegular />}
+                    onClick={() => handleDelete('azure_openai')}
+                  >
+                    Remove
+                  </Button>
+                )}
+                <Button
+                  size="small"
+                  appearance="primary"
+                  onClick={() =>
+                    handleSave('azure_openai', azureKey, {
+                      endpoint: azureEndpoint,
+                      deployment: azureDeployment,
+                    })
+                  }
+                  disabled={savingProv === 'azure_openai' || !azureKey || !azureEndpoint || !azureDeployment}
+                >
+                  {savingProv === 'azure_openai' ? <Spinner size="tiny" /> : 'Save Azure Key'}
+                </Button>
               </div>
             </div>
 
-            {/* Standard OpenAI Section */}
+            {/* OpenAI Section */}
             <div className={styles.providerRow}>
               <div className={styles.headerRow}>
                 <div>
-                  <strong>OpenAI API Key</strong>
-                  <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground3 }}>Powers direct OpenAI API models</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <SparkleRegular style={{ color: '#10a37f' }} />
+                    <strong>OpenAI Direct API</strong>
+                    {modelConfig.provider === 'openai' && (
+                      <Badge size="small" appearance="filled" color="brand">Active Engine</Badge>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground3 }}>
+                    Direct access to GPT-4o, GPT-4o-mini, o3-mini, and o1
+                  </div>
                 </div>
                 <Badge
                   appearance="filled"
@@ -288,37 +344,62 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
                 </Badge>
               </div>
 
-              <div className={styles.inputRow}>
-                <Input
-                  type="password"
-                  placeholder="sk-proj-..."
-                  value={openaiKey}
-                  onChange={(e, data) => setOpenaiKey(data.value)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  appearance="primary"
-                  onClick={() => handleSave('openai', openaiKey)}
-                  disabled={!openaiKey || savingProv === 'openai'}
-                >
-                  {savingProv === 'openai' ? 'Saving...' : 'Save'}
-                </Button>
+              <Field label="OpenAI API Key (sk-...)">
+                <div className={styles.inputRow}>
+                  <Input
+                    type="password"
+                    placeholder="sk-proj-..."
+                    value={openaiKey}
+                    onChange={(e, data) => setOpenaiKey(data.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    appearance="primary"
+                    onClick={() => handleSave('openai', openaiKey)}
+                    disabled={savingProv === 'openai' || !openaiKey}
+                  >
+                    {savingProv === 'openai' ? <Spinner size="tiny" /> : 'Save'}
+                  </Button>
+                </div>
+              </Field>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                {openaiInfo?.isConfigured && modelConfig.provider !== 'openai' && (
+                  <Button
+                    size="small"
+                    appearance="subtle"
+                    onClick={() => setProvider('openai')}
+                  >
+                    Set Active
+                  </Button>
+                )}
                 {openaiInfo?.isConfigured && (
                   <Button
+                    size="small"
                     appearance="subtle"
                     icon={<DeleteRegular />}
                     onClick={() => handleDelete('openai')}
-                  />
+                  >
+                    Remove Key
+                  </Button>
                 )}
               </div>
             </div>
 
-            {/* Gemini Section */}
+            {/* Google Gemini Section */}
             <div className={styles.providerRow}>
               <div className={styles.headerRow}>
                 <div>
-                  <strong>Google Gemini API Key</strong>
-                  <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground3 }}>Powers Gemini 2.0 Flash and 1.5 Pro</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <SparkleRegular style={{ color: '#1a73e8' }} />
+                    <strong>Google Gemini API</strong>
+                    {modelConfig.provider === 'gemini' && (
+                      <Badge size="small" appearance="filled" color="brand">Active Engine</Badge>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '12px', color: tokens.colorNeutralForeground3 }}>
+                    Direct access to Gemini 2.0 Flash, Gemini 1.5 Pro, and Gemini 2.5 Pro
+                  </div>
                 </div>
                 <Badge
                   appearance="filled"
@@ -329,34 +410,51 @@ export const ByokModal: React.FC<ByokModalProps> = ({ onKeysUpdated, triggerButt
                 </Badge>
               </div>
 
-              <div className={styles.inputRow}>
-                <Input
-                  type="password"
-                  placeholder="AIzaSy..."
-                  value={geminiKey}
-                  onChange={(e, data) => setGeminiKey(data.value)}
-                  style={{ flex: 1 }}
-                />
-                <Button
-                  appearance="primary"
-                  onClick={() => handleSave('gemini', geminiKey)}
-                  disabled={!geminiKey || savingProv === 'gemini'}
-                >
-                  {savingProv === 'gemini' ? 'Saving...' : 'Save'}
-                </Button>
+              <Field label="Gemini API Key (AIzaSy...)">
+                <div className={styles.inputRow}>
+                  <Input
+                    type="password"
+                    placeholder="AIzaSy..."
+                    value={geminiKey}
+                    onChange={(e, data) => setGeminiKey(data.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <Button
+                    appearance="primary"
+                    onClick={() => handleSave('gemini', geminiKey)}
+                    disabled={savingProv === 'gemini' || !geminiKey}
+                  >
+                    {savingProv === 'gemini' ? <Spinner size="tiny" /> : 'Save'}
+                  </Button>
+                </div>
+              </Field>
+
+              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                {geminiInfo?.isConfigured && modelConfig.provider !== 'gemini' && (
+                  <Button
+                    size="small"
+                    appearance="subtle"
+                    onClick={() => setProvider('gemini')}
+                  >
+                    Set Active
+                  </Button>
+                )}
                 {geminiInfo?.isConfigured && (
                   <Button
+                    size="small"
                     appearance="subtle"
                     icon={<DeleteRegular />}
                     onClick={() => handleDelete('gemini')}
-                  />
+                  >
+                    Remove Key
+                  </Button>
                 )}
               </div>
             </div>
           </DialogContent>
 
-          <DialogActions style={{ marginTop: '16px' }}>
-            <Button appearance="secondary" onClick={() => setOpen(false)}>
+          <DialogActions>
+            <Button appearance="secondary" onClick={() => setIsOpen(false)}>
               Close
             </Button>
           </DialogActions>

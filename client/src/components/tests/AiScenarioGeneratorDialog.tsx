@@ -30,6 +30,8 @@ import {
   DocumentBulletListRegular,
 } from '@fluentui/react-icons';
 import { apiClient } from '../../api/client';
+import { useAiModel } from '../../context/AiModelContext';
+import { UnifiedModelSelector } from '../ai/UnifiedModelSelector';
 
 const useStyles = makeStyles({
   surface: {
@@ -99,11 +101,11 @@ export const AiScenarioGeneratorDialog: React.FC<AiScenarioGeneratorDialogProps>
   defaultAppName = 'Customer Service Hub',
 }) => {
   const styles = useStyles();
+  const { modelConfig, setModelConfig } = useAiModel();
   const [open, setOpen] = useState(false);
   const [focusArea, setFocusArea] = useState('all');
   const [targetAppType, setTargetAppType] = useState(defaultAppType);
   const [targetAppName, setTargetAppName] = useState(defaultAppName);
-  const [engineProvider, setEngineProvider] = useState('byok');
   const [customPrompt, setCustomPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [generatedScenarios, setGeneratedScenarios] = useState<any[]>([]);
@@ -125,7 +127,8 @@ export const AiScenarioGeneratorDialog: React.FC<AiScenarioGeneratorDialogProps>
         prompt: customPrompt,
         targetAppType,
         targetAppName,
-        provider: engineProvider === 'byok' ? undefined : engineProvider,
+        provider: modelConfig.provider,
+        model: modelConfig.model,
       });
 
       const list = res.data?.scenarios || [];
@@ -237,28 +240,10 @@ export const AiScenarioGeneratorDialog: React.FC<AiScenarioGeneratorDialogProps>
                 </Dropdown>
               </Field>
 
-              <Field label="AI / Synthesis Engine">
-                <Dropdown
-                  value={
-                    engineProvider === 'byok'
-                      ? 'Agentic AI (Auto BYOK / Vault)'
-                      : engineProvider === 'openai'
-                      ? 'OpenAI (GPT-4o)'
-                      : engineProvider === 'azure_openai'
-                      ? 'Azure OpenAI Service'
-                      : engineProvider === 'gemini'
-                      ? 'Google Gemini (Gemini 2.0 Flash)'
-                      : 'Metadata Engine (Offline)'
-                  }
-                  selectedOptions={[engineProvider]}
-                  onOptionSelect={(_, data) => setEngineProvider(data.optionValue as string)}
-                >
-                  <Option value="byok">Agentic AI (Auto BYOK / Vault)</Option>
-                  <Option value="openai">OpenAI (GPT-4o)</Option>
-                  <Option value="azure_openai">Azure OpenAI Service</Option>
-                  <Option value="gemini">Google Gemini (Gemini 2.0 Flash)</Option>
-                  <Option value="metadata">Metadata Engine (Offline Fast)</Option>
-                </Dropdown>
+              <Field label="AI Model (Unified across all screens)">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingTop: '4px' }}>
+                  <UnifiedModelSelector variant="pill" theme="panel" showPrefix prefixText="Unified AI:" />
+                </div>
               </Field>
             </div>
 

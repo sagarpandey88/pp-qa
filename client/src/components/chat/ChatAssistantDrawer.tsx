@@ -24,8 +24,9 @@ import {
   FolderOpenRegular,
 } from '@fluentui/react-icons';
 import { apiClient } from '../../api/client';
-import { ModelSelector, ModelConfig } from './ModelSelector';
+import { UnifiedModelSelector } from '../ai/UnifiedModelSelector';
 import { ByokModal } from './ByokModal';
+import { useAiModel } from '../../context/AiModelContext';
 import { ChatMessageList, ChatMessageItem } from './ChatMessageList';
 
 const useStyles = makeStyles({
@@ -79,25 +80,7 @@ export const ChatAssistantDrawer: React.FC<ChatAssistantDrawerProps> = ({
   onScenarioImported,
 }) => {
   const styles = useStyles();
-  const [modelConfig, setModelConfig] = useState<ModelConfig>(() => {
-    try {
-      const saved = localStorage.getItem('ppqa_active_model_config');
-      if (saved) return JSON.parse(saved);
-      const customOpenAi = localStorage.getItem('ppqa_default_model_openai');
-      if (customOpenAi) return { provider: 'openai', model: customOpenAi };
-    } catch {}
-    return {
-      provider: 'openai',
-      model: 'gpt-4o',
-    };
-  });
-
-  const handleModelConfigChange = (cfg: ModelConfig) => {
-    setModelConfig(cfg);
-    try {
-      localStorage.setItem('ppqa_active_model_config', JSON.stringify(cfg));
-    } catch {}
-  };
+  const { modelConfig, setModelConfig } = useAiModel();
 
   const [solutions, setSolutions] = useState<any[]>([]);
   const [currentSolutionId, setCurrentSolutionId] = useState<string>(activeSolutionId || '');
@@ -268,7 +251,7 @@ export const ChatAssistantDrawer: React.FC<ChatAssistantDrawerProps> = ({
         </DrawerHeaderTitle>
 
         <div className={styles.headerControls}>
-          <ModelSelector value={modelConfig} onChange={handleModelConfigChange} />
+          <UnifiedModelSelector variant="pill" theme="panel" showPrefix prefixText="Unified AI:" />
           <ByokModal />
         </div>
 

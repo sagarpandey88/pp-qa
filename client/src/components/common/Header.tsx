@@ -23,29 +23,51 @@ import {
   ArrowExitRegular,
   SettingsRegular,
   PersonRegular,
+  NavigationRegular,
+  AppsRegular,
 } from '@fluentui/react-icons';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { LoginButton } from '../auth/LoginButton';
+import { UnifiedModelSelector } from '../ai/UnifiedModelSelector';
 
 const useStyles = makeStyles({
   header: {
     height: '56px',
-    backgroundColor: '#0078d4', // Microsoft 365 Blue
+    backgroundColor: '#742774', // Power Platform Purple
     color: '#ffffff',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '0 20px',
+    padding: '0 16px',
     boxShadow: '0 2px 4px rgba(0,0,0,0.14)',
   },
   leftSection: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '8px',
+  },
+  navToggleBtn: {
+    color: '#ffffff',
+    minWidth: '36px',
+    padding: '6px',
+    ':hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      color: '#ffffff',
+    },
+  },
+  brandArea: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
     cursor: 'pointer',
+    padding: '4px 8px',
+    borderRadius: '4px',
+    ':hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    },
   },
   logoIcon: {
     fontSize: '24px',
@@ -111,9 +133,16 @@ const useStyles = makeStyles({
 interface HeaderProps {
   onToggleChat?: () => void;
   isChatOpen?: boolean;
+  onToggleNav?: () => void;
+  isNavExpanded?: boolean;
 }
 
-export const Header: React.FC<HeaderProps> = ({ onToggleChat, isChatOpen }) => {
+export const Header: React.FC<HeaderProps> = ({
+  onToggleChat,
+  isChatOpen,
+  onToggleNav,
+  isNavExpanded,
+}) => {
   const styles = useStyles();
   const navigate = useNavigate();
   const { themeMode, effectiveTheme, setThemeMode, toggleTheme } = useTheme();
@@ -139,10 +168,28 @@ export const Header: React.FC<HeaderProps> = ({ onToggleChat, isChatOpen }) => {
 
   return (
     <header className={styles.header}>
-      <div className={styles.leftSection} onClick={() => navigate('/solutions')}>
-        <div className={styles.logoIcon}>⚡</div>
-        <Text className={styles.title}>Power Platform &amp; Copilot QA</Text>
-        <span className={styles.subtitle}>(pp-qa)</span>
+      <div className={styles.leftSection}>
+        {onToggleNav && (
+          <Tooltip
+            content={isNavExpanded ? 'Hide navigation' : 'Show navigation'}
+            relationship="label"
+          >
+            <Button
+              appearance="subtle"
+              icon={<NavigationRegular style={{ fontSize: '20px' }} />}
+              className={styles.navToggleBtn}
+              onClick={onToggleNav}
+              aria-label={isNavExpanded ? 'Hide navigation' : 'Show navigation'}
+            />
+          </Tooltip>
+        )}
+
+        <div className={styles.brandArea} onClick={() => navigate('/solutions')}>
+          <AppsRegular style={{ fontSize: '20px', opacity: 0.9 }} />
+          <div className={styles.logoIcon}>⚡</div>
+          <Text className={styles.title}>Power Platform &amp; Copilot QA</Text>
+          <span className={styles.subtitle}>(pp-qa)</span>
+        </div>
       </div>
 
       <div className={styles.rightSection}>
@@ -156,6 +203,9 @@ export const Header: React.FC<HeaderProps> = ({ onToggleChat, isChatOpen }) => {
             {dbMode}
           </Badge>
         </Tooltip>
+
+        {/* Global Unified AI Model Selector Pill */}
+        <UnifiedModelSelector variant="pill" theme="header" />
 
         {/* AI Assistant Drawer Toggle */}
         <Button

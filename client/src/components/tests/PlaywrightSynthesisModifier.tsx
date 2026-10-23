@@ -31,7 +31,7 @@ import {
   EyeRegular,
 } from '@fluentui/react-icons';
 import { apiClient } from '../../api/client';
-import { ModelSelector, ModelConfig } from '../chat/ModelSelector';
+import { useAiModel } from '../../context/AiModelContext';
 
 const useStyles = makeStyles({
   container: {
@@ -337,11 +337,8 @@ export const PlaywrightSynthesisModifier: React.FC<PlaywrightSynthesisModifierPr
   // View mode: 'split' | 'full' | 'diff'
   const [viewMode, setViewMode] = useState<'split' | 'full' | 'diff'>('split');
 
-  // AI Assistant state
-  const [modelConfig, setModelConfig] = useState<ModelConfig>({
-    provider: 'azure_openai',
-    model: 'gpt-4o',
-  });
+  // AI Assistant state (uses unified model selected in top bar)
+  const { modelConfig, getShortModelLabel, getProviderLabel, isConfigured } = useAiModel();
   const [instruction, setInstruction] = useState('');
   const [errorLog, setErrorLog] = useState(initialErrorLog);
   const [showErrorLog, setShowErrorLog] = useState(Boolean(initialErrorLog));
@@ -784,14 +781,31 @@ export const PlaywrightSynthesisModifier: React.FC<PlaywrightSynthesisModifierPr
                   <SparkleRegular style={{ color: '#0078d4', fontSize: '18px' }} />
                   <strong style={{ fontSize: '14px' }}>Playwright AI Assistant</strong>
                 </div>
-                <ModelSelector
-                  value={modelConfig}
-                  onChange={(newModel) => setModelConfig(newModel)}
-                />
+                <Tooltip
+                  content={`Using unified AI model from top bar: ${getProviderLabel()} (${modelConfig.model}). Change it anytime in the top bar selector.`}
+                  relationship="label"
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Badge
+                      appearance="tint"
+                      color="brand"
+                      icon={<SparkleRegular style={{ color: '#0078d4' }} />}
+                    >
+                      {getShortModelLabel()}
+                    </Badge>
+                    <Badge
+                      size="small"
+                      appearance="outline"
+                      color={isConfigured(modelConfig.provider) ? 'success' : 'subtle'}
+                    >
+                      {isConfigured(modelConfig.provider) ? 'Vault' : 'Mock'}
+                    </Badge>
+                  </div>
+                </Tooltip>
               </div>
 
               <Text size={200} style={{ color: tokens.colorNeutralForeground3 }}>
-                Describe modifications or paste failure logs. AI fixes locators, adds assertions, and aligns code with Microsoft Power Platform POM patterns.
+                Uses <strong>{getShortModelLabel()}</strong> selected in the top bar. Describe modifications or paste failure logs to fix locators, add assertions, and align with Microsoft Power Platform POM patterns.
               </Text>
 
               {/* Quick Action Presets */}
@@ -865,10 +879,10 @@ export const PlaywrightSynthesisModifier: React.FC<PlaywrightSynthesisModifierPr
                 {isModifying ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Spinner size="tiny" />
-                    AI Modifying Playwright Script...
+                    Modifying with {getShortModelLabel()}...
                   </span>
                 ) : (
-                  '✨ Modify Script with AI Assistant'
+                  `✨ Modify Script (${getShortModelLabel()})`
                 )}
               </Button>
 
